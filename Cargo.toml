@@ -1,0 +1,25 @@
+[package]
+name = "typescript_utils"
+version = "0.1.0"
+authors = ["HiRoFa <info@hirofa.com>"]
+edition = "2018"
+description = "Typescript transpiler for GreenCopper"
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+swc = {version = "0.20.0"}
+swc_ecma_parser = {version = "0.57.1"}
+swc_common = {version="0.10.20", features=["tty-emitter"]}
+hirofa_utils = {git = "https://github.com/HiRoFa/utils"}
+log = "0.4"
+
+[dev-dependencies.cargo-husky]
+version = "1.5.0"
+default-features = false # Disable features which are enabled by default
+features = ["precommit-hook", "run-cargo-test", "run-cargo-clippy"]
+
+[dev-dependencies.green_copper_runtime]
+git = "https://github.com/HiRoFa/GreenCopperRuntime"
+branch = "main"
