@@ -1,10 +1,10 @@
 use hirofa_utils::js_utils::{JsError, Script, ScriptPreProcessor};
 use std::sync::Arc;
 
-use swc::config::Config;
+use swc::config::{Config, JscTarget};
 use swc_common::errors::{ColorConfig, Handler};
 use swc_common::{FileName, SourceMap};
-use swc_ecma_parser::{JscTarget, Syntax};
+use swc_ecma_parser::{Syntax, TsConfig};
 
 pub struct TypeScriptPreProcessor {}
 
@@ -17,6 +17,7 @@ impl TypeScriptPreProcessor {
     pub fn transpile(&self, code: &str) -> Result<String, JsError> {
         let cm = Arc::<SourceMap>::default();
         let handler = Handler::with_tty_emitter(ColorConfig::Auto, true, false, Some(cm.clone()));
+
         let c = swc::Compiler::new(cm.clone(), Arc::new(handler));
 
         //let fm = cm
@@ -25,7 +26,7 @@ impl TypeScriptPreProcessor {
 
         let fm = cm.new_source_file(FileName::Custom("test.ts".into()), code.into());
 
-        let ts_cfg = swc_ecma_parser::TsConfig {
+        let ts_cfg = TsConfig {
             dynamic_import: true,
             decorators: true,
             ..Default::default()

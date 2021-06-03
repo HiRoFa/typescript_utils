@@ -9,9 +9,16 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-swc = {version = "0.20.0"}
-swc_ecma_parser = {version = "0.57.1"}
-swc_common = {version="0.10.20", features=["tty-emitter"]}
+#swc = {version = "0.20.0"}
+#swc = {path="../swc"}
+swc = {git="https://github.com/HiRoFa/swc"}
+#swc_ecma_parser = {version = "0.57.1"}
+#swc_ecma_parser = {path="../swc/ecmascript/parser"}
+swc_ecma_parser = {git="https://github.com/HiRoFa/swc"}
+#swc_common = {version="0.10.20", features=["tty-emitter"]}
+#swc_common = {path="../swc/common", features=["tty-emitter"]}
+swc_common = {git="https://github.com/HiRoFa/swc", features=["tty-emitter"]}
+
 hirofa_utils = {git = "https://github.com/HiRoFa/utils"}
 log = "0.4"
 
