@@ -21,12 +21,12 @@ swc_common = {git="https://github.com/HiRoFa/swc", features=["tty-emitter"]}
 
 hirofa_utils = {git = "https://github.com/HiRoFa/utils"}
 log = "0.4"
+futures = "0.3.16"
 
 [dev-dependencies.cargo-husky]
 version = "1.5.0"
 default-features = false # Disable features which are enabled by default
 features = ["precommit-hook", "run-cargo-test", "run-cargo-clippy"]
 
-[dev-dependencies.green_copper_runtime]
-git = "https://github.com/HiRoFa/GreenCopperRuntime"
-branch = "main"
+[dev-dependencies.quickjs_runtime]
+git = "https://github.com/HiRoFa/quickjs_es_runtime"

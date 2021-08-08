@@ -77,22 +77,26 @@ impl ScriptPreProcessor for TypeScriptPreProcessor {
 #[cfg(test)]
 pub mod tests {
     use crate::TypeScriptPreProcessor;
+    use futures::executor::block_on;
+    use hirofa_utils::js_utils::facades::JsRuntimeFacade;
     use hirofa_utils::js_utils::Script;
+    use quickjs_runtime::builder::QuickjsRuntimeBuilder;
 
     #[test]
     fn test_ts() {
-        let rt = green_copper_runtime::new_greco_rt_builder()
+        let rt = QuickjsRuntimeBuilder::new()
             .script_pre_processor(TypeScriptPreProcessor::new())
             .build();
 
-        let res = rt
-            .eval_sync(Script::new(
+        let fut = rt.js_eval(
+            None,
+            Script::new(
                 "test.ts",
                 "(function(a: Number, b, c) {let d: String = 'abc'; return(a);}(1, 2, 3))",
-            ))
-            .ok()
-            .expect("script failed");
-        println!("res = {:?}", res);
-        assert_eq!(res.get_i32(), 1);
+            ),
+        );
+        let res = block_on(fut).ok().expect("script failed");
+        //println!("res = {}", res.js_get_type());
+        assert_eq!(res.js_as_i32(), 1);
     }
 }
