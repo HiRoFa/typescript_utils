@@ -16,18 +16,27 @@ futures = "0.3.6"
 
 Then you can create a runtime and run typescript using the following code
 ```rust
-let rt = QuickjsRuntimeBuilder::new()
-.script_pre_processor(TypeScriptPreProcessor::new())
-.build();
+use crate::TypeScriptPreProcessor;
+use futures::executor::block_on;
+use hirofa_utils::js_utils::facades::{JsRuntimeBuilder, JsRuntimeFacade};
+use hirofa_utils::js_utils::Script;
+use quickjs_runtime::builder::QuickJsRuntimeBuilder;
 
-let fut = rt.js_eval(
-None,
-Script::new(
-"test.ts",
-"(function(a: Number, b, c) {let d: String = 'abc'; return(a);}(1, 2, 3))",
-),
-);
-let res = block_on(fut).ok().expect("script failed");
-//println!("res = {}", res.js_get_type());
-assert_eq!(res.js_as_i32(), 1);
+#[test]
+fn test_ts() {
+    let rt = QuickJsRuntimeBuilder::new()
+        .js_script_pre_processor(TypeScriptPreProcessor::new())
+        .build();
+
+    let fut = rt.js_eval(
+        None,
+        Script::new(
+            "test.ts",
+            "(function(a: Number, b, c) {let d: String = 'abc'; return(a);}(1, 2, 3))",
+        ),
+    );
+    let res = block_on(fut).ok().expect("script failed");
+    //println!("res = {}", res.js_get_type());
+    assert_eq!(res.get_i32(), 1);
+}
 ```
