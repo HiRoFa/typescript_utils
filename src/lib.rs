@@ -1,7 +1,8 @@
 use hirofa_utils::js_utils::{JsError, Script, ScriptPreProcessor};
 use std::sync::Arc;
 
-use swc::config::{Config, JscTarget};
+use swc::config::Config;
+use swc::ecmascript::ast::EsVersion;
 use swc_common::errors::{ColorConfig, Handler};
 use swc_common::{FileName, SourceMap};
 use swc_ecma_parser::{Syntax, TsConfig};
@@ -18,7 +19,7 @@ impl TypeScriptPreProcessor {
         let cm = Arc::<SourceMap>::default();
         let handler = Handler::with_tty_emitter(ColorConfig::Auto, true, false, Some(cm.clone()));
 
-        let c = swc::Compiler::new(cm.clone(), Arc::new(handler));
+        let c = swc::Compiler::new(cm.clone());
 
         //let fm = cm
         //    .load_file(Path::new("foo.ts"))
@@ -35,14 +36,14 @@ impl TypeScriptPreProcessor {
         let mut cfg = Config::default();
         cfg.jsc.syntax = Some(Syntax::Typescript(ts_cfg));
         cfg.jsc.external_helpers = false;
-        cfg.jsc.target = Some(JscTarget::Es2016);
+        cfg.jsc.target = Some(EsVersion::Es2020);
 
         let ops = swc::config::Options {
             config: cfg,
             ..Default::default()
         };
 
-        let res = c.process_js_file(fm, &ops);
+        let res = c.process_js_file(fm, &handler, &ops);
 
         match res {
             Ok(to) => Ok(to.code),
