@@ -2,16 +2,25 @@ use hirofa_utils::js_utils::{JsError, Script, ScriptPreProcessor};
 use std::sync::Arc;
 
 use swc::config::{Config, ModuleConfig};
+use swc::ecmascript::ast::EsVersion;
 use swc_common::errors::{ColorConfig, Handler};
 use swc_common::{FileName, SourceMap};
 use swc_ecma_parser::{Syntax, TsConfig};
 use ModuleConfig::Es6;
 
-pub struct TypeScriptPreProcessor {}
+pub struct TypeScriptPreProcessor {
+    minify: bool,
+    external_helpers: bool,
+    target: EsVersion,
+}
 
 impl TypeScriptPreProcessor {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(target: EsVersion, minify: bool, external_helpers: bool) -> Self {
+        Self {
+            minify,
+            external_helpers,
+            target,
+        }
     }
     // todo custom target
     // todo keep instance of compiler in arc (lazy_static)
@@ -35,8 +44,10 @@ impl TypeScriptPreProcessor {
 
         let mut cfg = Config::default();
         cfg.jsc.syntax = Some(Syntax::Typescript(ts_cfg));
-        cfg.jsc.external_helpers = false;
-
+        cfg.jsc.target = Some(self.target);
+        cfg.jsc.external_helpers = self.external_helpers;
+        cfg.minify = self.minify;
+        // todo setup sourcemaps for minify to work
         cfg.module = Some(Es6);
 
         let ops = swc::config::Options {
@@ -56,7 +67,7 @@ impl TypeScriptPreProcessor {
 
 impl Default for TypeScriptPreProcessor {
     fn default() -> Self {
-        Self::new()
+        Self::new(EsVersion::Es2016, false, true)
     }
 }
 
@@ -86,11 +97,12 @@ pub mod tests {
     use hirofa_utils::js_utils::facades::{JsRuntimeBuilder, JsRuntimeFacade};
     use hirofa_utils::js_utils::{Script, ScriptPreProcessor};
     use quickjs_runtime::builder::QuickJsRuntimeBuilder;
+    use swc::ecmascript::ast::EsVersion;
 
     #[test]
     fn test_ts() {
         let rt = QuickJsRuntimeBuilder::new()
-            .js_script_pre_processor(TypeScriptPreProcessor::new())
+            .js_script_pre_processor(TypeScriptPreProcessor::new(EsVersion::Es2020, false, false))
             .build();
 
         let fut = rt.js_eval(
@@ -107,19 +119,31 @@ pub mod tests {
 
     #[test]
     fn test_mts() {
-        let pp = TypeScriptPreProcessor::new();
-        let mut input = Script::new(
-            "test.mts",
-            "import {a} from 'foo.mts'; \n{let b: Number = a.quibus;}\n export function q(val: Number) {};",
-        );
+        let pp = TypeScriptPreProcessor::new(EsVersion::Es2020, true, true);
+        let inputs = vec![
+             Script::new(
+                "import_test.mts",
+                "import {a} from 'foo.mts'; \n{let b: Number = a.quibus;}\n export function q(val: Number) {};",
+            ),
+             Script::new(
+                 "export_class_test.mts",
+                 "export class MyClass {constructor(name) {this.name = name;}}",
+             )
+        ];
 
-        match pp.process(&mut input) {
-            Ok(_) => {
-                assert!(!input.get_code().is_empty());
-                println!("{}", input.get_code());
-            }
-            Err(err) => {
-                panic!("{}", err);
+        for mut input in inputs {
+            match pp.process(&mut input) {
+                Ok(_) => {
+                    assert!(!input.get_code().is_empty());
+                    println!(
+                        "{}\n-------------\n{}\n---------------\n",
+                        input.get_path(),
+                        input.get_code()
+                    );
+                }
+                Err(err) => {
+                    panic!("{}:\n-------------\n{}", input.get_path(), err);
+                }
             }
         }
     }
