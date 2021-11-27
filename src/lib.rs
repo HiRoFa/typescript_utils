@@ -8,6 +8,13 @@ use swc_common::{FileName, SourceMap};
 use swc_ecma_parser::{Syntax, TsConfig};
 use ModuleConfig::Es6;
 
+pub enum TargetVersion {
+    Es3,
+    Es5,
+    Es2016,
+    Es2020,
+}
+
 pub struct TypeScriptPreProcessor {
     minify: bool,
     external_helpers: bool,
@@ -15,7 +22,13 @@ pub struct TypeScriptPreProcessor {
 }
 
 impl TypeScriptPreProcessor {
-    pub fn new(target: EsVersion, minify: bool, external_helpers: bool) -> Self {
+    pub fn new(target: TargetVersion, minify: bool, external_helpers: bool) -> Self {
+        let target = match target {
+            TargetVersion::Es3 => EsVersion::Es3,
+            TargetVersion::Es5 => EsVersion::Es5,
+            TargetVersion::Es2016 => EsVersion::Es2016,
+            TargetVersion::Es2020 => EsVersion::Es2020,
+        };
         Self {
             minify,
             external_helpers,
@@ -67,7 +80,7 @@ impl TypeScriptPreProcessor {
 
 impl Default for TypeScriptPreProcessor {
     fn default() -> Self {
-        Self::new(EsVersion::Es2016, false, true)
+        Self::new(TargetVersion::Es2016, false, true)
     }
 }
 
@@ -92,17 +105,21 @@ impl ScriptPreProcessor for TypeScriptPreProcessor {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::TargetVersion;
     use crate::TypeScriptPreProcessor;
     use futures::executor::block_on;
     use hirofa_utils::js_utils::facades::{JsRuntimeBuilder, JsRuntimeFacade};
     use hirofa_utils::js_utils::{Script, ScriptPreProcessor};
     use quickjs_runtime::builder::QuickJsRuntimeBuilder;
-    use swc::ecmascript::ast::EsVersion;
 
     #[test]
     fn test_ts() {
         let rt = QuickJsRuntimeBuilder::new()
-            .js_script_pre_processor(TypeScriptPreProcessor::new(EsVersion::Es2020, false, false))
+            .js_script_pre_processor(TypeScriptPreProcessor::new(
+                TargetVersion::Es2020,
+                false,
+                false,
+            ))
             .build();
 
         let fut = rt.js_eval(
@@ -119,7 +136,7 @@ pub mod tests {
 
     #[test]
     fn test_mts() {
-        let pp = TypeScriptPreProcessor::new(EsVersion::Es2020, true, true);
+        let pp = TypeScriptPreProcessor::new(TargetVersion::Es2020, true, true);
         let inputs = vec![
              Script::new(
                 "import_test.mts",
