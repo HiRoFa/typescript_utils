@@ -87,10 +87,18 @@ impl Default for TypeScriptPreProcessor {
 impl ScriptPreProcessor for TypeScriptPreProcessor {
     fn process(&self, script: &mut Script) -> Result<(), JsError> {
         if script.get_path().ends_with(".ts") {
-            let js = self.transpile(script.get_code(), false)?;
-            script.set_code(js);
-        } else if script.get_path().ends_with(".mts") {
-            let js = self.transpile(script.get_code(), true)?;
+            let code = script.get_code();
+
+            let is_module = code.starts_with("import ")
+                || code.starts_with("export ")
+                || code.contains(" import ")
+                || code.contains("\nimport ")
+                || code.contains("\timport ")
+                || code.contains(" export ")
+                || code.contains("\nexport ")
+                || code.contains("\texport ");
+
+            let js = self.transpile(code, is_module)?;
             script.set_code(js);
         }
         log::debug!(
@@ -139,11 +147,11 @@ pub mod tests {
         let pp = TypeScriptPreProcessor::new(TargetVersion::Es2020, true, true);
         let inputs = vec![
              Script::new(
-                "import_test.mts",
-                "import {a} from 'foo.mts'; \n{let b: Number = a.quibus;}\n export function q(val: Number) {};",
+                "import_test.ts",
+                "import {a} from 'foo.ts'; \n{let b: Number = a.quibus;}\n export function q(val: Number) {};",
             ),
              Script::new(
-                 "export_class_test.mts",
+                 "export_class_test.ts",
                  "export class MyClass {constructor(name) {this.name = name;}}",
              )
         ];
