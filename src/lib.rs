@@ -1,5 +1,6 @@
 use hirofa_utils::js_utils::{JsError, Script, ScriptPreProcessor};
 use std::sync::Arc;
+use swc::Compiler;
 
 use swc::config::{Config, ModuleConfig};
 use swc::ecmascript::ast::EsVersion;
@@ -19,6 +20,8 @@ pub struct TypeScriptPreProcessor {
     minify: bool,
     external_helpers: bool,
     target: EsVersion,
+    compiler: Compiler,
+    source_map: Arc<SourceMap>,
 }
 
 impl TypeScriptPreProcessor {
@@ -29,25 +32,33 @@ impl TypeScriptPreProcessor {
             TargetVersion::Es2016 => EsVersion::Es2016,
             TargetVersion::Es2020 => EsVersion::Es2020,
         };
+        let source_map = Arc::<SourceMap>::default();
+        let compiler = swc::Compiler::new(source_map.clone());
+
         Self {
             minify,
             external_helpers,
             target,
+            source_map,
+            compiler,
         }
     }
     // todo custom target
-    // todo keep instance of compiler in arc (lazy_static)
     pub fn transpile(&self, code: &str, is_module: bool) -> Result<String, JsError> {
-        let cm = Arc::<SourceMap>::default();
-        let handler = Handler::with_tty_emitter(ColorConfig::Auto, true, false, Some(cm.clone()));
-
-        let c = swc::Compiler::new(cm.clone());
+        let handler = Handler::with_tty_emitter(
+            ColorConfig::Auto,
+            true,
+            false,
+            Some(self.source_map.clone()),
+        );
 
         //let fm = cm
         //    .load_file(Path::new("foo.ts"))
         //    .expect("failed to load file");
 
-        let fm = cm.new_source_file(FileName::Custom("test.ts".into()), code.into());
+        let fm = self
+            .source_map
+            .new_source_file(FileName::Custom("test.ts".into()), code.into());
 
         let ts_cfg = TsConfig {
             dynamic_import: true,
@@ -69,7 +80,7 @@ impl TypeScriptPreProcessor {
             ..Default::default()
         };
 
-        let res = c.process_js_file(fm, &handler, &ops);
+        let res = self.compiler.process_js_file(fm, &handler, &ops);
 
         match res {
             Ok(to) => Ok(to.code),
