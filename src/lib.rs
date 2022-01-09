@@ -2,10 +2,12 @@ use hirofa_utils::js_utils::{JsError, Script, ScriptPreProcessor};
 use std::sync::Arc;
 use swc::Compiler;
 
-use swc::config::{Config, ModuleConfig};
+use swc::config::util::BoolOrObject;
+use swc::config::{Config, IsModule, JsMinifyOptions, ModuleConfig, TerserSourceMapOption};
 use swc::ecmascript::ast::EsVersion;
 use swc_common::errors::{ColorConfig, Handler};
 use swc_common::{FileName, SourceMap};
+use swc_ecma_minifier::option::{MangleOptions, ManglePropertiesOptions};
 use swc_ecma_parser::{Syntax, TsConfig};
 use ModuleConfig::Es6;
 
@@ -52,16 +54,11 @@ impl TypeScriptPreProcessor {
             Some(self.source_map.clone()),
         );
 
-        //let fm = cm
-        //    .load_file(Path::new("foo.ts"))
-        //    .expect("failed to load file");
-
         let fm = self
             .source_map
             .new_source_file(FileName::Custom("test.ts".into()), code.into());
 
         let ts_cfg = TsConfig {
-            dynamic_import: true,
             decorators: true,
             ..Default::default()
         };
@@ -70,13 +67,47 @@ impl TypeScriptPreProcessor {
         cfg.jsc.syntax = Some(Syntax::Typescript(ts_cfg));
         cfg.jsc.target = Some(self.target);
         cfg.jsc.external_helpers = self.external_helpers;
-        cfg.minify = self.minify;
+        if self.minify {
+            cfg.minify = true;
+            cfg.jsc.minify = Some(JsMinifyOptions {
+                compress: Default::default(),
+                mangle: BoolOrObject::Obj(MangleOptions {
+                    props: Some(ManglePropertiesOptions {
+                        reserved: vec![],
+                        undeclared: false,
+                        regex: None,
+                    }),
+                    top_level: true,
+                    keep_class_names: false,
+                    keep_fn_names: false,
+                    keep_private_props: false,
+                    ie8: false,
+                    safari10: false,
+                }),
+                format: Default::default(),
+                ecma: Default::default(),
+                keep_classnames: false,
+                keep_fnames: false,
+                module: is_module,
+                safari10: false,
+                toplevel: true,
+                source_map: BoolOrObject::Obj(TerserSourceMapOption {
+                    filename: None,
+                    url: None,
+                    root: None,
+                    content: None,
+                }),
+                output_path: None,
+                inline_sources_content: false,
+            });
+        }
+
         // todo setup sourcemaps for minify to work
         cfg.module = Some(Es6);
 
         let ops = swc::config::Options {
             config: cfg,
-            is_module,
+            is_module: IsModule::Bool(is_module),
             ..Default::default()
         };
 
@@ -163,7 +194,11 @@ pub mod tests {
             ),
              Script::new(
                  "export_class_test.ts",
-                 "export class MyClass {constructor(name) {this.name = name;}}",
+                 "export class /* hi */ MyClass {constructor(name) {this.name = name;} getIt() {return (this.name + ' is gotten');}}",
+             ),
+             Script::new(
+                 "not_a_module.ts",
+                 "async function test() {let m = await import('testmod.ts');}",
              )
         ];
 
