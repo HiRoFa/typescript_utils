@@ -22,7 +22,8 @@ swc_ecma_parser = "0.82.7"
 #swc_common = {git="https://github.com/swc-project/swc", features=["tty-emitter"]}
 swc_common = {version = "0.15.3", features = ["tty-emitter"]}
 swc_ecma_minifier = "0.61.1"
-hirofa_utils = {git = "https://github.com/HiRoFa/utils"}
+#hirofa_utils = {git = "https://github.com/HiRoFa/utils"}
+hirofa_utils = "0.4"
 log = "0.4"
 futures = "0.3"
 
