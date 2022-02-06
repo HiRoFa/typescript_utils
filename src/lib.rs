@@ -136,9 +136,11 @@ impl ScriptPreProcessor for TypeScriptPreProcessor {
                 || code.contains(" import ")
                 || code.contains("\nimport ")
                 || code.contains("\timport ")
+                || code.contains(";import ")
                 || code.contains(" export ")
                 || code.contains("\nexport ")
-                || code.contains("\texport ");
+                || code.contains("\texport ")
+                || code.contains(";export ");
 
             let js = self.transpile(code, is_module)?;
             script.set_code(js);
@@ -194,7 +196,7 @@ pub mod tests {
             ),
              Script::new(
                  "export_class_test.ts",
-                 "export class /* hi */ MyClass {constructor(name) {this.name = name;} getIt() {return (this.name + ' is gotten');}}",
+                 "function functWithLongName(abc) {return abc + 1;};export class /* hi */ MyClass {constructor(name) {this.name = name; this.sum = functWithLongName(1);} getIt() {return (this.name + ' is gotten');}}",
              ),
              Script::new(
                  "not_a_module.ts",
