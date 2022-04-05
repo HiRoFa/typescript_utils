@@ -22,8 +22,9 @@ swc_ecma_parser = "0.82.7"
 #swc_common = {git="https://github.com/swc-project/swc", features=["tty-emitter"]}
 swc_common = {version = "0.15.3", features = ["tty-emitter"]}
 swc_ecma_minifier = "0.61.1"
-#hirofa_utils = {git = "https://github.com/HiRoFa/utils"}
-hirofa_utils = "0.5"
+hirofa_utils = {git = "https://github.com/HiRoFa/utils"}
+#hirofa_utils = "0.5"
+#hirofa_utils = {path = "../utils"}
 log = "0.4"
 futures = "0.3"
 
@@ -34,3 +35,4 @@ features = ["precommit-hook", "run-cargo-test", "run-cargo-clippy"]
 
 [dev-dependencies.quickjs_runtime]
 git = "https://github.com/HiRoFa/quickjs_es_runtime"
+#path = "../quickjs_es_runtime"

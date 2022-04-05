@@ -3,7 +3,7 @@ use std::sync::Arc;
 use swc::Compiler;
 
 use swc::config::util::BoolOrObject;
-use swc::config::{Config, IsModule, JsMinifyOptions, ModuleConfig, TerserSourceMapOption};
+use swc::config::{Config, IsModule, JsMinifyOptions, ModuleConfig};
 use swc::ecmascript::ast::EsVersion;
 use swc_common::errors::{ColorConfig, Handler};
 use swc_common::{FileName, SourceMap};
@@ -74,29 +74,25 @@ impl TypeScriptPreProcessor {
                 mangle: BoolOrObject::Obj(MangleOptions {
                     props: Some(ManglePropertiesOptions {
                         reserved: vec![],
-                        undeclared: false,
+                        undeclared: true,
                         regex: None,
                     }),
                     top_level: true,
-                    keep_class_names: false,
+                    keep_class_names: true,
                     keep_fn_names: false,
                     keep_private_props: false,
                     ie8: false,
                     safari10: false,
                 }),
+                //mangle: BoolOrObject::Bool(false),
                 format: Default::default(),
                 ecma: Default::default(),
-                keep_classnames: false,
+                keep_classnames: true,
                 keep_fnames: false,
                 module: is_module,
                 safari10: false,
                 toplevel: true,
-                source_map: BoolOrObject::Obj(TerserSourceMapOption {
-                    filename: None,
-                    url: None,
-                    root: None,
-                    content: None,
-                }),
+                source_map: BoolOrObject::Bool(true),
                 output_path: None,
                 inline_sources_content: false,
             });
@@ -190,17 +186,17 @@ pub mod tests {
     fn test_mts() {
         let pp = TypeScriptPreProcessor::new(TargetVersion::Es2020, true, true);
         let inputs = vec![
-             Script::new(
-                "import_test.ts",
-                "import {a} from 'foo.ts'; \n{let b: Number = a.quibus;}\n export function q(val: Number) {};",
+            Script::new(
+                "export_class_test.ts",
+                "function functWithLongName(abc) {return abc + 1;};export class /* hi */ MyClass {name: string; sum: number; constructor(name) {this.name = name; this.sum = functWithLongName(1);} getIt() {return (this.name + ' is gotten');}}",
             ),
              Script::new(
-                 "export_class_test.ts",
-                 "function functWithLongName(abc) {return abc + 1;};export class /* hi */ MyClass {constructor(name) {this.name = name; this.sum = functWithLongName(1);} getIt() {return (this.name + ' is gotten');}}",
-             ),
+                "import_test.ts",
+                "import {MyClass} from 'export_class_test.ts'; \n{let b: Number = MyClass.quibus;}\n export function q(val: Number) {let mc = new MyClass(); return mc.sum;};",
+            ),
              Script::new(
                  "not_a_module.ts",
-                 "async function test() {let m = await import('testmod.ts');}",
+                 "async function test() {let m = await import('texport_class_test.ts'); let mc = new m.MyClass(); console.log(m.getIt());}",
              )
         ];
 
