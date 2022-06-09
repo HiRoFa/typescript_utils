@@ -1,39 +1,44 @@
 use hirofa_utils::js_utils::{JsError, Script, ScriptPreProcessor};
 use std::sync::Arc;
-use swc::Compiler;
+use swc::{Compiler};
 
-use swc::config::util::BoolOrObject;
-use swc::config::{Config, IsModule, JsMinifyOptions, ModuleConfig};
-use swc::ecmascript::ast::EsVersion;
+use swc::config::{ IsModule};
 use swc_common::errors::{ColorConfig, Handler};
 use swc_common::{FileName, SourceMap};
-use swc_ecma_minifier::option::{MangleOptions, ManglePropertiesOptions};
-use swc_ecma_parser::{Syntax, TsConfig};
-use ModuleConfig::Es6;
 
 pub enum TargetVersion {
     Es3,
     Es5,
     Es2016,
     Es2020,
+    Es2021,
+    Es2022,
+}
+
+impl TargetVersion {
+    fn as_str(&self) -> &str {
+        match self {
+            TargetVersion::Es3 => "es3",
+            TargetVersion::Es5 => "es5",
+            TargetVersion::Es2016 => "es2016",
+            TargetVersion::Es2020 => "es2020",
+            TargetVersion::Es2021 => "es2020",
+            TargetVersion::Es2022 => "es2020"
+        }
+    }
 }
 
 pub struct TypeScriptPreProcessor {
     minify: bool,
     external_helpers: bool,
-    target: EsVersion,
+    target: TargetVersion,
     compiler: Compiler,
     source_map: Arc<SourceMap>,
 }
 
 impl TypeScriptPreProcessor {
     pub fn new(target: TargetVersion, minify: bool, external_helpers: bool) -> Self {
-        let target = match target {
-            TargetVersion::Es3 => EsVersion::Es3,
-            TargetVersion::Es5 => EsVersion::Es5,
-            TargetVersion::Es2016 => EsVersion::Es2016,
-            TargetVersion::Es2020 => EsVersion::Es2020,
-        };
+
         let source_map = Arc::<SourceMap>::default();
         let compiler = swc::Compiler::new(source_map.clone());
 
@@ -58,48 +63,64 @@ impl TypeScriptPreProcessor {
             .source_map
             .new_source_file(FileName::Custom("test.ts".into()), code.into());
 
-        let ts_cfg = TsConfig {
-            decorators: true,
-            ..Default::default()
+        let minify_options = if self.minify {
+            r#"
+                "minify": {
+                  "compress": {
+                    "unused": true
+                  },
+                  "mangle": true
+                },
+            "#
+        } else {
+            ""
         };
 
-        let mut cfg = Config::default();
-        cfg.jsc.syntax = Some(Syntax::Typescript(ts_cfg));
-        cfg.jsc.target = Some(self.target);
-        cfg.jsc.external_helpers = self.external_helpers;
-        if self.minify {
-            cfg.minify = true;
-            cfg.jsc.minify = Some(JsMinifyOptions {
-                compress: Default::default(),
-                mangle: BoolOrObject::Obj(MangleOptions {
-                    props: Some(ManglePropertiesOptions {
-                        reserved: vec![],
-                        undeclared: true,
-                        regex: None,
-                    }),
-                    top_level: true,
-                    keep_class_names: true,
-                    keep_fn_names: false,
-                    keep_private_props: false,
-                    ie8: false,
-                    safari10: false,
-                }),
-                //mangle: BoolOrObject::Bool(false),
-                format: Default::default(),
-                ecma: Default::default(),
-                keep_classnames: true,
-                keep_fnames: false,
-                module: is_module,
-                safari10: false,
-                toplevel: true,
-                source_map: BoolOrObject::Bool(true),
-                output_path: None,
-                inline_sources_content: false,
-            });
-        }
+        let module = r#"
+                "module": {
+                    "type": "es6",
+                    "strict": true,
+                    "strictMode": true,
+                    "lazy": false,
+                    "noInterop": false,
+                    "ignoreDynamic": true
+                },
+        "#;
 
-        // todo setup sourcemaps for minify to work
-        cfg.module = Some(Es6);
+        let cfg_json = format!(r#"
+
+            {{
+              "minify": {},
+              {}
+              "jsc": {{
+                {}
+                "externalHelpers": {},
+                "parser": {{
+                  "syntax": "typescript",
+                  "tsx": true,
+                  "decorators": true,
+                  "dynamicImport": true
+                }},
+                "transform": {{
+                  "legacyDecorator": true,
+                  "decoratorMetadata": true,
+                  "react": {{
+                      "runtime": "automatic",
+                      "useBuiltins": true,
+                      "refresh": true
+                  }}
+                }},
+                "target": "{}"
+              }}
+            }}
+
+        "#, self.minify, module, minify_options, self.external_helpers, self.target.as_str());
+
+        log::trace!("using config {}", cfg_json);
+
+        let cfg = serde_json::from_str(cfg_json.as_str()).map_err(|e| {
+            JsError::new_string(format!("{}", e))
+        })?;
 
         let ops = swc::config::Options {
             config: cfg,
@@ -110,8 +131,10 @@ impl TypeScriptPreProcessor {
         let res = self.compiler.process_js_file(fm, &handler, &ops);
 
         match res {
-            Ok(to) => Ok(to.code),
-            Err(e) => Err(JsError::new_string(format!("{}", e))),
+            Ok(to) => {
+                Ok(to.code)
+            },
+            Err(e) => Err(JsError::new_string(format!("transpile failed: {}", e))),
         }
     }
 }
@@ -157,11 +180,16 @@ pub mod tests {
     use crate::TypeScriptPreProcessor;
     use futures::executor::block_on;
     use hirofa_utils::js_utils::facades::{JsRuntimeBuilder, JsRuntimeFacade};
-    use hirofa_utils::js_utils::{Script, ScriptPreProcessor};
+    use hirofa_utils::js_utils::{ Script, ScriptPreProcessor};
+    use log::LevelFilter;
     use quickjs_runtime::builder::QuickJsRuntimeBuilder;
+    use simple_logging::log_to_stderr;
 
     #[test]
     fn test_ts() {
+
+        log_to_stderr(LevelFilter::Trace);
+
         let rt = QuickJsRuntimeBuilder::new()
             .js_script_pre_processor(TypeScriptPreProcessor::new(
                 TargetVersion::Es2020,
@@ -177,14 +205,17 @@ pub mod tests {
                 "(function(a: Number, b, c) {let d: String = 'abc'; return(a);}(1, 2, 3))",
             ),
         );
-        let res = block_on(fut).ok().expect("script failed");
+        let res = match block_on(fut) {
+            Ok(r) => r,
+            Err(e) => panic!("script failed{}", e)
+        };
         //println!("res = {}", res.js_get_type());
         assert_eq!(res.get_i32(), 1);
     }
 
     #[test]
     fn test_mts() {
-        let pp = TypeScriptPreProcessor::new(TargetVersion::Es2020, true, true);
+        let pp = TypeScriptPreProcessor::new(TargetVersion::Es2020, true, false);
         let inputs = vec![
             Script::new(
                 "export_class_test.ts",
@@ -197,6 +228,22 @@ pub mod tests {
              Script::new(
                  "not_a_module.ts",
                  "async function test() {let m = await import('texport_class_test.ts'); let mc = new m.MyClass(); console.log(m.getIt());}",
+             ),
+
+             Script::new(
+                 "ssr.tsx",
+                 r#"
+                    import React, { Component } from 'react';
+                    import Button from './Button'; // Import a component from another file
+
+                    class DangerButton extends Component {
+                      render(): void {
+                        return <Button color="red" />;
+                      }
+                    }
+
+                    export default DangerButton;
+                 "#,
              )
         ];
 
