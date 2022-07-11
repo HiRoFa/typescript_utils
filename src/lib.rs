@@ -51,7 +51,7 @@ impl TypeScriptPreProcessor {
         }
     }
     // todo custom target
-    pub fn transpile(&self, code: &str, is_module: bool) -> Result<String, JsError> {
+    pub fn transpile(&self, code: &str, file_name: &str, is_module: bool) -> Result<String, JsError> {
         let handler = Handler::with_tty_emitter(
             ColorConfig::Auto,
             true,
@@ -61,7 +61,7 @@ impl TypeScriptPreProcessor {
 
         let fm = self
             .source_map
-            .new_source_file(FileName::Custom("test.ts".into()), code.into());
+            .new_source_file(FileName::Custom(file_name.into()), code.into());
 
         let minify_options = if self.minify {
             r#"
@@ -161,7 +161,7 @@ impl ScriptPreProcessor for TypeScriptPreProcessor {
                 || code.contains("\texport ")
                 || code.contains(";export ");
 
-            let js = self.transpile(code, is_module)?;
+            let js = self.transpile(code, script.get_path(), is_module)?;
             script.set_code(js);
         }
         log::debug!(
