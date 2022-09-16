@@ -2,26 +2,26 @@
 name = "typescript_utils"
 version = "0.1.0"
 authors = ["HiRoFa <info@hirofa.com>"]
-edition = "2018"
+edition = "2021"
 description = "Typescript transpiler for GreenCopper"
 license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-swc = "0.186.0"
+swc = "0.226"
 #swc = {path="../swc"}
 #swc = {git="https://github.com/HiRoFa/swc"}
 #swc = {git="https://github.com/swc-project/swc"}
 #swc_ecma_parser = {version = "0.57.1"}
 #swc_ecma_parser = {path="../swc/ecmascript/parser"}
-swc_ecma_parser = "0.105.0"
+swc_ecma_parser = "0.119"
 #swc_ecma_parser = {git="https://github.com/swc-project/swc"}
 #swc_common = {version="0.10.20", features=["tty-emitter"]}
 #swc_common = {path="../swc/common", features=["tty-emitter"]}
 #swc_common = {git="https://github.com/swc-project/swc", features=["tty-emitter"]}
-swc_common = {version = "0.18.8", features = ["tty-emitter"]}
-swc_ecma_minifier = "0.118.0"
+swc_common = {version = "0.28", features = ["tty-emitter"]}
+swc_ecma_minifier = "0.154"
 #hirofa_utils = {git = "https://github.com/HiRoFa/utils"}
 hirofa_utils = "0.5"
 #hirofa_utils = {path = "../utils"}

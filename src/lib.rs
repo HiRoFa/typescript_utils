@@ -2,7 +2,6 @@ use hirofa_utils::js_utils::{JsError, Script, ScriptPreProcessor};
 use std::sync::Arc;
 use swc::{Compiler};
 
-use swc::config::{ IsModule};
 use swc_common::errors::{ColorConfig, Handler};
 use swc_common::{FileName, SourceMap};
 
@@ -64,19 +63,19 @@ impl TypeScriptPreProcessor {
             .new_source_file(FileName::Custom(file_name.into()), code.into());
 
         let minify_options = if self.minify {
-            r#"
-                "minify": {
-                  "compress": {
-                    "unused": true
-                  },
+            format!(r#"
+                "minify": {{
+                  "compress": {{
+                    "unused": {}
+                  }},
                   "mangle": true
-                },
-            "#
+                }},
+            "#, is_module)
         } else {
-            ""
+            "".to_string()
         };
 
-        let module = r#"
+        let module = if is_module { r#"
                 "module": {
                     "type": "es6",
                     "strict": true,
@@ -85,7 +84,10 @@ impl TypeScriptPreProcessor {
                     "noInterop": false,
                     "ignoreDynamic": true
                 },
-        "#;
+                "#
+        } else {
+            ""
+        };
 
         let cfg_json = format!(r#"
 
@@ -105,7 +107,7 @@ impl TypeScriptPreProcessor {
                   "legacyDecorator": true,
                   "decoratorMetadata": true,
                   "react": {{
-                      "runtime": "automatic",
+                      "runtime": "classic",
                       "useBuiltins": true,
                       "refresh": true
                   }}
@@ -124,7 +126,6 @@ impl TypeScriptPreProcessor {
 
         let ops = swc::config::Options {
             config: cfg,
-            is_module: IsModule::Bool(is_module),
             ..Default::default()
         };
 
@@ -194,7 +195,7 @@ pub mod tests {
             .js_script_pre_processor(TypeScriptPreProcessor::new(
                 TargetVersion::Es2020,
                 false,
-                false,
+                true,
             ))
             .build();
 
@@ -215,7 +216,10 @@ pub mod tests {
 
     #[test]
     fn test_mts() {
-        let pp = TypeScriptPreProcessor::new(TargetVersion::Es2020, true, false);
+
+        log_to_stderr(LevelFilter::Trace);
+
+        let pp = TypeScriptPreProcessor::new(TargetVersion::Es2020, true, true);
         let inputs = vec![
             Script::new(
                 "export_class_test.ts",
@@ -223,11 +227,11 @@ pub mod tests {
             ),
              Script::new(
                 "import_test.ts",
-                "import {MyClass} from 'export_class_test.ts'; \n{let b: Number = MyClass.quibus;}\n export function q(val: Number) {let mc = new MyClass(); return mc.sum;};",
+                "import {MyClass} from 'export_class_test.ts'; \n{let b: Number = MyClass.quibus;}\n export function q(val: Number) {let mc = new MyClass(); return mc.sum + mc.getIt();};",
             ),
              Script::new(
                  "not_a_module.ts",
-                 "async function test() {let m = await import('texport_class_test.ts'); let mc = new m.MyClass(); console.log(m.getIt());}",
+                 "async function test() {let m = await import('export_class_test.ts'); let mc = new m.MyClass(); console.log(m.getIt());}",
              ),
 
              Script::new(
@@ -239,6 +243,9 @@ pub mod tests {
                     class DangerButton extends Component {
                       render(): void {
                         return <Button color="red" />;
+                      }
+                      render2(): void {
+                        return <div />;
                       }
                     }
 
