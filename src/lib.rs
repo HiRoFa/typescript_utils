@@ -1,6 +1,6 @@
 use hirofa_utils::js_utils::{JsError, Script, ScriptPreProcessor};
 use std::sync::Arc;
-use swc::{Compiler};
+use swc::Compiler;
 
 use swc_common::errors::{ColorConfig, Handler};
 use swc_common::{FileName, SourceMap};
@@ -22,13 +22,14 @@ impl TargetVersion {
             TargetVersion::Es2016 => "es2016",
             TargetVersion::Es2020 => "es2020",
             TargetVersion::Es2021 => "es2020",
-            TargetVersion::Es2022 => "es2020"
+            TargetVersion::Es2022 => "es2020",
         }
     }
 }
 
 pub struct TypeScriptPreProcessor {
     minify: bool,
+    mangle: bool,
     external_helpers: bool,
     target: TargetVersion,
     compiler: Compiler,
@@ -36,13 +37,13 @@ pub struct TypeScriptPreProcessor {
 }
 
 impl TypeScriptPreProcessor {
-    pub fn new(target: TargetVersion, minify: bool, external_helpers: bool) -> Self {
-
+    pub fn new(target: TargetVersion, minify: bool, external_helpers: bool, mangle: bool) -> Self {
         let source_map = Arc::<SourceMap>::default();
         let compiler = swc::Compiler::new(source_map.clone());
 
         Self {
             minify,
+            mangle,
             external_helpers,
             target,
             source_map,
@@ -50,32 +51,46 @@ impl TypeScriptPreProcessor {
         }
     }
     // todo custom target
-    pub fn transpile(&self, code: &str, file_name: &str, is_module: bool) -> Result<String, JsError> {
-        let handler = Handler::with_tty_emitter(
-            ColorConfig::Auto,
-            true,
-            false,
-            Some(self.source_map.clone()),
-        );
+    pub fn transpile(
+        &self,
+        code: &str,
+        file_name: &str,
+        is_module: bool,
+    ) -> Result<(String, Option<String>), JsError> {
+        let globals = swc_common::Globals::new();
+        swc_common::GLOBALS.set(&globals, || {
+            let handler = Handler::with_tty_emitter(
+                ColorConfig::Auto,
+                true,
+                false,
+                Some(self.source_map.clone()),
+            );
 
-        let fm = self
-            .source_map
-            .new_source_file(FileName::Custom(file_name.into()), code.into());
+            let fm = self
+                .source_map
+                .new_source_file(FileName::Custom(file_name.into()), code.into());
 
-        let minify_options = if self.minify {
-            format!(r#"
+            let minify_options = if self.minify {
+                format!(
+                    r#"
                 "minify": {{
                   "compress": {{
                     "unused": {}
                   }},
-                  "mangle": true
+                  "format": {{
+                    "comments": false
+                  }},
+                  "mangle": {}
                 }},
-            "#, is_module)
-        } else {
-            "".to_string()
-        };
+            "#,
+                    is_module, self.mangle
+                )
+            } else {
+                "".to_string()
+            };
 
-        let module = if is_module { r#"
+            let module = if is_module {
+                r#"
                 "module": {
                     "type": "es6",
                     "strict": true,
@@ -85,23 +100,27 @@ impl TypeScriptPreProcessor {
                     "ignoreDynamic": true
                 },
                 "#
-        } else {
-            ""
-        };
+            } else {
+                ""
+            };
 
-        let cfg_json = format!(r#"
+            let cfg_json = format!(
+                r#"
 
             {{
               "minify": {},
+              "sourceMaps": true,
               {}
               "jsc": {{
                 {}
                 "externalHelpers": {},
                 "parser": {{
                   "syntax": "typescript",
+                  "jsx": true,
                   "tsx": true,
                   "decorators": true,
-                  "dynamicImport": true
+                  "dynamicImport": true,
+                  "preserveAllComments": false
                 }},
                 "transform": {{
                   "legacyDecorator": true,
@@ -112,37 +131,42 @@ impl TypeScriptPreProcessor {
                       "refresh": true
                   }}
                 }},
-                "target": "{}"
+                "target": "{}",
+                "keepClassNames": true
               }}
             }}
 
-        "#, self.minify, module, minify_options, self.external_helpers, self.target.as_str());
+        "#,
+                self.minify,
+                module,
+                minify_options,
+                self.external_helpers,
+                self.target.as_str()
+            );
 
-        log::trace!("using config {}", cfg_json);
+            log::trace!("using config {}", cfg_json);
 
-        let cfg = serde_json::from_str(cfg_json.as_str()).map_err(|e| {
-            JsError::new_string(format!("{}", e))
-        })?;
+            let cfg = serde_json::from_str(cfg_json.as_str())
+                .map_err(|e| JsError::new_string(format!("{}", e)))?;
 
-        let ops = swc::config::Options {
-            config: cfg,
-            ..Default::default()
-        };
+            let ops = swc::config::Options {
+                config: cfg,
+                ..Default::default()
+            };
 
-        let res = self.compiler.process_js_file(fm, &handler, &ops);
+            let res = self.compiler.process_js_file(fm, &handler, &ops);
 
-        match res {
-            Ok(to) => {
-                Ok(to.code)
-            },
-            Err(e) => Err(JsError::new_string(format!("transpile failed: {}", e))),
-        }
+            match res {
+                Ok(to) => Ok((to.code, to.map)),
+                Err(e) => Err(JsError::new_string(format!("transpile failed: {}", e))),
+            }
+        })
     }
 }
 
 impl Default for TypeScriptPreProcessor {
     fn default() -> Self {
-        Self::new(TargetVersion::Es2016, false, true)
+        Self::new(TargetVersion::Es2020, false, true, false)
     }
 }
 
@@ -163,7 +187,8 @@ impl ScriptPreProcessor for TypeScriptPreProcessor {
                 || code.contains(";export ");
 
             let js = self.transpile(code, script.get_path(), is_module)?;
-            script.set_code(js);
+            script.set_code(js.0);
+            log::info!("map: {:?}", js.1);
         }
         log::debug!(
             "TypeScriptPreProcessor:process file={} result = {}",
@@ -181,14 +206,13 @@ pub mod tests {
     use crate::TypeScriptPreProcessor;
     use futures::executor::block_on;
     use hirofa_utils::js_utils::facades::{JsRuntimeBuilder, JsRuntimeFacade};
-    use hirofa_utils::js_utils::{ Script, ScriptPreProcessor};
+    use hirofa_utils::js_utils::{Script, ScriptPreProcessor};
     use log::LevelFilter;
     use quickjs_runtime::builder::QuickJsRuntimeBuilder;
     use simple_logging::log_to_stderr;
 
     #[test]
     fn test_ts() {
-
         log_to_stderr(LevelFilter::Trace);
 
         let rt = QuickJsRuntimeBuilder::new()
@@ -196,6 +220,7 @@ pub mod tests {
                 TargetVersion::Es2020,
                 false,
                 true,
+                false,
             ))
             .build();
 
@@ -208,7 +233,7 @@ pub mod tests {
         );
         let res = match block_on(fut) {
             Ok(r) => r,
-            Err(e) => panic!("script failed{}", e)
+            Err(e) => panic!("script failed{}", e),
         };
         //println!("res = {}", res.js_get_type());
         assert_eq!(res.get_i32(), 1);
@@ -216,10 +241,9 @@ pub mod tests {
 
     #[test]
     fn test_mts() {
-
         log_to_stderr(LevelFilter::Trace);
 
-        let pp = TypeScriptPreProcessor::new(TargetVersion::Es2020, true, true);
+        let pp = TypeScriptPreProcessor::new(TargetVersion::Es2020, true, true, false);
         let inputs = vec![
             Script::new(
                 "export_class_test.ts",
@@ -235,16 +259,17 @@ pub mod tests {
              ),
 
              Script::new(
-                 "ssr.tsx",
+                 "ssr.ts",
                  r#"
-                    import React, { Component } from 'react';
+                    import {React, Component } from 'react';
                     import Button from './Button'; // Import a component from another file
 
                     class DangerButton extends Component {
-                      render(): void {
-                        return <Button color="red" />;
+                      async render(): void {
+                        let id = new Date().getTime();
+                        return <i><Button color="red" hid={id} /><Button color="blue" hud={id} /></i>;
                       }
-                      render2(): void {
+                      async render2(): void {
                         return <div />;
                       }
                     }
