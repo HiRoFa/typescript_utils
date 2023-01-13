@@ -70,6 +70,17 @@ impl TypeScriptPreProcessor {
                 .source_map
                 .new_source_file(FileName::Custom(file_name.into()), code.into());
 
+            let mangle_config = if self.mangle {
+                r#"
+                    {
+                        "topLevel": false,
+                        "keepClassNames": true
+                    }
+                "#
+            } else {
+                "false"
+            };
+
             let minify_options = if self.minify {
                 format!(
                     r#"
@@ -83,7 +94,7 @@ impl TypeScriptPreProcessor {
                   "mangle": {}
                 }},
             "#,
-                    is_module, self.mangle
+                    is_module, mangle_config
                 )
             } else {
                 "".to_string()
@@ -153,6 +164,9 @@ impl TypeScriptPreProcessor {
                 config: cfg,
                 ..Default::default()
             };
+
+            // todo see https://github.com/swc-project/swc/discussions/4126
+            // for better example
 
             let res = self.compiler.process_js_file(fm, &handler, &ops);
 
@@ -243,7 +257,7 @@ pub mod tests {
     fn test_mts() {
         log_to_stderr(LevelFilter::Trace);
 
-        let pp = TypeScriptPreProcessor::new(TargetVersion::Es2020, true, true, false);
+        let pp = TypeScriptPreProcessor::new(TargetVersion::Es2020, true, true, true);
         let inputs = vec![
             Script::new(
                 "export_class_test.ts",
@@ -263,7 +277,9 @@ pub mod tests {
                  r#"
                     import {React, Component } from 'react';
                     import Button from './Button'; // Import a component from another file
-
+                    /*
+                     hello
+                     */
                     class DangerButton extends Component {
                       async render(): void {
                         let id = new Date().getTime();
