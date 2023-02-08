@@ -86,15 +86,14 @@ impl TypeScriptPreProcessor {
                     r#"
                 "minify": {{
                   "compress": {{
-                    "unused": {}
+                    "unused": {is_module}
                   }},
                   "format": {{
                     "comments": false
                   }},
-                  "mangle": {}
+                  "mangle": {mangle_config}
                 }},
-            "#,
-                    is_module, mangle_config
+            "#
                 )
             } else {
                 "".to_string()
@@ -158,7 +157,7 @@ impl TypeScriptPreProcessor {
             log::trace!("using config {}", cfg_json);
 
             let cfg = serde_json::from_str(cfg_json.as_str())
-                .map_err(|e| JsError::new_string(format!("{}", e)))?;
+                .map_err(|e| JsError::new_string(format!("{e}")))?;
 
             let ops = swc::config::Options {
                 config: cfg,
@@ -172,7 +171,7 @@ impl TypeScriptPreProcessor {
 
             match res {
                 Ok(to) => Ok((to.code, to.map)),
-                Err(e) => Err(JsError::new_string(format!("transpile failed: {}", e))),
+                Err(e) => Err(JsError::new_string(format!("transpile failed: {e}"))),
             }
         })
     }
@@ -247,7 +246,7 @@ pub mod tests {
         );
         let res = match block_on(fut) {
             Ok(r) => r,
-            Err(e) => panic!("script failed{}", e),
+            Err(e) => panic!("script failed{e}"),
         };
         //println!("res = {}", res.js_get_type());
         assert_eq!(res.get_i32(), 1);
