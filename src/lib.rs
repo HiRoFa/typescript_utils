@@ -129,6 +129,7 @@ impl TypeScriptPreProcessor {
                   "jsx": true,
                   "tsx": true,
                   "decorators": true,
+                  "decoratorsBeforeExport": true,
                   "dynamicImport": true,
                   "preserveAllComments": false
                 }},
@@ -291,7 +292,25 @@ pub mod tests {
 
                     export default DangerButton;
                  "#,
-             )
+             ),
+            Script::new(
+                "deco.ts",
+                r#"
+                    
+                    function profile(target) {
+                        const start = Date.now();
+                        const ret = target();
+                        const end = Date.now();
+                        console.log("%s took %sms", target.name, end - start);
+                        return ret;    
+                    }
+                    
+                    @profile
+                    export function doSomething() {
+                        console.log("hi");
+                    }
+                 "#,
+            )
         ];
 
         for mut input in inputs {
