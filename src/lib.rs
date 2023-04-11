@@ -202,7 +202,7 @@ impl ScriptPreProcessor for TypeScriptPreProcessor {
 
             let js = self.transpile(code, script.get_path(), is_module)?;
             script.set_code(js.0);
-            log::info!("map: {:?}", js.1);
+            log::debug!("map: {:?}", js.1);
         }
         log::debug!(
             "TypeScriptPreProcessor:process file={} result = {}",
