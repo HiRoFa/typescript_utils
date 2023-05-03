@@ -1,7 +1,6 @@
-use hirofa_utils::js_utils::{JsError, Script, ScriptPreProcessor};
 use std::sync::Arc;
+use quickjs_runtime::jsutils::{JsError, Script, ScriptPreProcessor};
 use swc::Compiler;
-
 use swc_common::errors::{ColorConfig, Handler};
 use swc_common::{FileName, SourceMap};
 
@@ -219,10 +218,9 @@ pub mod tests {
     use crate::TargetVersion;
     use crate::TypeScriptPreProcessor;
     use futures::executor::block_on;
-    use hirofa_utils::js_utils::facades::{JsRuntimeBuilder, JsRuntimeFacade};
-    use hirofa_utils::js_utils::{Script, ScriptPreProcessor};
     use log::LevelFilter;
     use quickjs_runtime::builder::QuickJsRuntimeBuilder;
+    use quickjs_runtime::jsutils::{Script, ScriptPreProcessor};
     use simple_logging::log_to_stderr;
 
     #[test]
@@ -238,7 +236,7 @@ pub mod tests {
             ))
             .build();
 
-        let fut = rt.js_eval(
+        let fut = rt.eval(
             None,
             Script::new(
                 "test.ts",
