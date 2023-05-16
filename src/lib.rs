@@ -228,7 +228,7 @@ pub mod tests {
         log_to_stderr(LevelFilter::Trace);
 
         let rt = QuickJsRuntimeBuilder::new()
-            .js_script_pre_processor(TypeScriptPreProcessor::new(
+            .script_pre_processor(TypeScriptPreProcessor::new(
                 TargetVersion::Es2020,
                 false,
                 true,

@@ -23,10 +23,11 @@ swc_ecma_parser = "0.123"
 swc_common = {version = "0.29", features = ["tty-emitter"]}
 swc_ecma_minifier = "0.160"
 #hirofa_utils = {git = "https://github.com/HiRoFa/utils"}
-#hirofa_utils = "0.6"
+#hirofa_utils = "0.7"
 #hirofa_utils = {path = "../utils"}
 #quickjs_runtime = {path = "../quickjs_es_runtime"}
-quickjs_runtime = {git = "https://github.com/HiRoFa/quickjs_es_runtime"}
+#quickjs_runtime = {git = "https://github.com/HiRoFa/quickjs_es_runtime"}
+quickjs_runtime = "0.10"
 serde_json = "1.0"
 log = "0.4"
 futures = "0.3"
